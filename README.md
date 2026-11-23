@@ -32,10 +32,10 @@ Hệ thống gồm ba tầng:
 ## 🤝 Đóng góp
 Dự án được phát triển bởi các thành viên:
 
-| Họ và Tên                | Vai trò                  |
-|--------------------------|--------------------------|
-| Ngô Văn Nam              | Cập nhật sau.|
-| Vũ Bá Hoàng Duy          | Cập nhật sau.|
+| Họ và Tên                |
+|--------------------------|
+| Ngô Văn Nam              |
+| Vũ Bá Hoàng Duy          |
 ---
 
 *Dự án được thực hiện trong khuôn khổ bài tập lớn môn Hệ thống nhúng.*
