@@ -16,7 +16,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 #include <SPI.h>
-#include <EEPROM.h>
+#include <avr/eeprom.h>
 
 // Thoi gian 16 bit (65 s quay vong) la du cho moi phep do khoang ngan, nho hon so hoc 32 bit
 #define ELAPSED(t) ((uint16_t)((uint16_t)millis() - (t)))
@@ -42,9 +42,9 @@
 #define MUSIC         true
 
 // ---------- Chinh huong joystick neu bi nguoc ----------
-#define SWAP_XY  false
+#define SWAP_XY  true
 #define INV_X    true
-#define INV_Y    true
+#define INV_Y    false
 
 Adafruit_ST7735 tft(TFT_CS, TFT_DC, TFT_RST);
 
@@ -72,13 +72,23 @@ uint8_t rnd(uint8_t n) {              // xorshift nho gon, thay cho rnd()
   return ((rs >> 8) * n) >> 8;
 }
 
-uint16_t hiS[5];   // diem cao: 0 SNAKE, 1 IRON STRIKE, 2 TETRIS, 3 PAC-MAN, 4 TANK (EEPROM addr = 2*i)
+// EEPROM (50 B): E[0..4] = diem cao (addr 0,2,4,6,8: SNAKE, IRON STRIKE, TETRIS, PAC-MAN, TANK)
+//                E[5+4g .. 8+4g] = 4 diem gan nhat cua game g (moi nhat truoc), 0xFFFF = chua co
+uint16_t E[25];
+#define hiS E
+#define HIST(g) (E + 5 + 4 * (g))
+uint8_t lastG;
 
-// Cap nhat diem cao, tra ve true neu lap ky luc
+// Ghi diem vua choi, tra ve true neu lap ky luc
 bool saveHi(uint8_t g, uint16_t sc) {
-  if (sc <= hiS[g]) return false;
-  hiS[g] = sc;
-  EEPROM.put(g * 2, sc);
+  lastG = g;
+  uint16_t* h = HIST(g);
+  for (uint8_t k = 3; k; k--) h[k] = h[k - 1];
+  h[0] = sc;
+  eeprom_update_block(h, (void*)(10 + g * 8), 8);
+  if (sc <= E[g]) return false;
+  E[g] = sc;
+  eeprom_update_block(E + g, (void*)(g * 2), 2);
   return true;
 }
 
@@ -235,13 +245,20 @@ uint8_t endScreen(const __FlashStringHelper* title, uint16_t tcol, uint16_t scor
   centerText(title, 42, 2, tcol);
   tft.setTextSize(1);
   tft.setTextColor(C_TEXT);
-  tft.setCursor(16, 66);
+  tft.setCursor(16, 60);
   tft.print(F("Diem: "));
   pn(score);
-  tft.setCursor(16, 78);
+  tft.setCursor(16, 70);
   tft.print(F("Cao nhat: "));
   pn(hi);
-  centerText(F("A:choi lai B:menu"), 106, 1, C_TEXT);
+  tft.setCursor(16, 82);
+  tft.print(F("Gan day:"));
+  tft.setCursor(16, 92);
+  for (uint8_t k = 0; k < 4; k++) {
+    uint16_t v = HIST(lastG)[k];
+    if (v != 0xFFFF) { pn(v); tft.print(' '); }
+  }
+  centerText(F("A:choi lai B:menu"), 108, 1, C_TEXT);
   delay(500);
   tune(tcol == C_RED ? T_OVER : T_WIN, false);
   waitAllReleased();
@@ -1713,10 +1730,8 @@ void setup() {
   tft.initR(INITR_BLACKTAB);   // lech/sai mau: thu INITR_GREENTAB hoac INITR_REDTAB
   tft.setRotation(0);
 
-  for (uint8_t i = 0; i < 5; i++) {
-    EEPROM.get(i * 2, hiS[i]);
-    if (hiS[i] == 0xFFFF) hiS[i] = 0;
-  }
+  eeprom_read_block(E, 0, 50);
+  for (uint8_t i = 0; i < 5; i++) if (E[i] == 0xFFFF) E[i] = 0;
   timerInit();
 }
 
